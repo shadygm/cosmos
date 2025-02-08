@@ -12,12 +12,13 @@ from camera import Camera
 from input_handler import InputHandler
 import util
 import imgui_manager
+from worldsettings import WorldSettings
 
 
 
 # Make a Camera object
-world_camera = Camera(720, 1280)
-
+world_settings = WorldSettings()
+world_camera = world_settings.world_camera
 def impl_glfw_init():
     window_name = "Cosmos"
 
@@ -47,10 +48,12 @@ def game_loop(window, glfw_renderer):
         gl.glClearColor(0, 0, 0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         
+        world_settings.input_handler.check_inputs()
+
         imgui.new_frame()
 
 
-        imgui_manager.main_ui()
+        imgui_manager.main_ui(world_settings=world_settings)
 
         imgui.render()
         glfw_renderer.render(imgui.get_draw_data())
@@ -65,7 +68,8 @@ def main():
     window = impl_glfw_init()
 
     glfw_renderer = GlfwRenderer(window)
-    input_handler = InputHandler(window)
+    input_handler = InputHandler(window, world_settings)
+    world_settings.input_handler = input_handler
 
     # Backend GS renderer
 
