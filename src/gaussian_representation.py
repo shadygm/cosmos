@@ -81,7 +81,15 @@ class GaussianSet:
         """
         Returns a 2D array where each row is the flattened representation of a single Gaussian.
         """
-        return np.stack([g.flat() for g in self.gaussians], axis=0)
+        xyz = np.stack([g.xyz for g in self.gaussians], axis=0)
+        rot = np.stack([g.rot for g in self.gaussians], axis=0)
+        scale = np.stack([g.scale for g in self.gaussians], axis=0)
+        # Ensure opacity is a column vector (shape: (N, 1)) before concatenation.
+        opacity = np.array([g.opacity for g in self.gaussians]).reshape(-1, 1)
+        sh = np.stack([g.sh for g in self.gaussians], axis=0)
+        
+        ret = np.concatenate([xyz, rot, scale, opacity, sh], axis=-1)
+        return np.ascontiguousarray(ret)
     
     def __len__(self) -> int:
         return len(self.gaussians)

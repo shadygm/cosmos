@@ -8,6 +8,13 @@ import numpy as np
 _sort_buffer_xyz = None
 _sort_buffer_gausid = None  # used to tell whether gaussian set is reloaded
 
+try:
+    from OpenGL.raw.WGL.EXT.swap_control import wglSwapIntervalEXT
+except:
+    wglSwapIntervalEXT = None
+
+
+
 def _sort_gaussian_cpu(gaussianset, view_mat):
     # Expect gaussianset to have a property 'xyz' (of shape (N,3))
     xyz = np.asarray(gaussianset.xyz)
@@ -21,6 +28,11 @@ def _sort_gaussian_cpu(gaussianset, view_mat):
 def _sort_gaussian_cupy(gaussianset, view_mat):
     import cupy as cp
     global _sort_buffer_gausid, _sort_buffer_xyz
+    
+    if gaussianset is None or len(gaussianset) == 0:
+        util.get_logger().error("Gaussian data not loaded")
+        return
+    
     if _sort_buffer_gausid != id(gaussianset):
         _sort_buffer_xyz = cp.asarray(gaussianset.xyz)
         _sort_buffer_gausid = id(gaussianset)
@@ -90,7 +102,7 @@ class GaussianRenderBase:
     def set_scale_modifier(self, modifier: float):
         raise NotImplementedError()
     
-    def set_render_mod(self, mod: int):
+    def set_render_mode(self, mod: int):
         raise NotImplementedError()
     
     def update_camera_pose(self):
@@ -102,7 +114,7 @@ class GaussianRenderBase:
     def draw(self):
         raise NotImplementedError()
     
-    def set_render_reso(self, w, h):
+    def set_render_resolution(self, w, h):
         raise NotImplementedError()
 
 
@@ -110,7 +122,7 @@ class OpenGLRenderer(GaussianRenderBase):
     def __init__(self, w, h, world_settings):
         super().__init__()
         gl.glViewport(0, 0, w, h)
-        self.program = util.load_shaders('shaders/gau_vert.glsl', 'shaders/gau_frag.glsl')
+        self.program = util.load_shaders('./ui/shaders/gau_vert.glsl', './ui/shaders/gau_frag.glsl')
 
         # Vertex data for a quad
         self.quad_v = np.array([
@@ -126,7 +138,7 @@ class OpenGLRenderer(GaussianRenderBase):
         
         # Load quad geometry into a VAO.
         vao, buffer_id = util.set_attributes(self.program, ["position"], [self.quad_v])
-        util.set_faces_tovao(vao, self.quad_f)
+        util.set_faces_to_vao(vao, self.quad_f)
         self.vao = vao
         self.gau_bufferid = None
         self.index_bufferid = None
@@ -150,6 +162,11 @@ class OpenGLRenderer(GaussianRenderBase):
         self.gaussians = gaussianset
         # Obtain the flattened representation from the GaussianSet.
         gaussian_data = gaussianset.flat()
+        
+
+        print(gaussian_data.shape)
+        print(gaussian_data[0])
+        
         self.gau_bufferid = util.set_storage_buffer_data(
             self.program,
             "gaussian_data",
@@ -161,6 +178,8 @@ class OpenGLRenderer(GaussianRenderBase):
         util.set_uniform_1int(self.program, gaussianset.sh_dim, "sh_dim")
 
     def sort_and_update(self):
+        if self.gaussians is None or len(self.gaussians) == 0:
+            return
         # Obtain the camera from world_settings
         camera = self.world_settings.world_camera
         index = _sort_gaussian(self.gaussians, camera.get_view_matrix())
@@ -171,15 +190,14 @@ class OpenGLRenderer(GaussianRenderBase):
             bind_idx=1,
             buffer_id=self.index_bufferid
         )
-        return
    
     def set_scale_modifier(self, modifier):
         util.set_uniform_1f(self.program, modifier, "scale_modifier")
 
-    def set_render_mod(self, mod: int):
+    def set_render_mode(self, mod: int):
         util.set_uniform_1int(self.program, mod, "render_mod")
 
-    def set_render_reso(self, w, h):
+    def set_render_resolution(self, w, h):
         gl.glViewport(0, 0, w, h)
 
     def update_camera_pose(self):
@@ -196,6 +214,8 @@ class OpenGLRenderer(GaussianRenderBase):
         util.set_uniform_v3(self.program, camera.get_htanfovxy_focal(), "hfovxy_focal")
 
     def draw(self):
+        if self.gaussians is None:
+            return
         gl.glUseProgram(self.program)
         gl.glBindVertexArray(self.vao)
         num_gau = len(self.gaussians)

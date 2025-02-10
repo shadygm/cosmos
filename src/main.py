@@ -27,6 +27,7 @@ def impl_glfw_init():
         exit(1)
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
 
     global window
     window = glfw.create_window(
@@ -39,6 +40,7 @@ def impl_glfw_init():
     if not window:
         log.error("Could not initialize Window")
         glfw.terminate()
+        exit(1)
     return window
 
 
@@ -52,8 +54,14 @@ def game_loop(window, glfw_renderer):
 
         imgui.new_frame()
 
+        world_settings.gauss_renderer.update_camera_pose()
+        world_settings.gauss_renderer.update_camera_intrin()
+        
 
+        world_settings.gauss_renderer.draw()
         imgui_manager.main_ui(world_settings=world_settings)
+
+        world_settings.gauss_renderer.sort_and_update()
 
         imgui.render()
         glfw_renderer.render(imgui.get_draw_data())
@@ -72,7 +80,8 @@ def main():
     world_settings.input_handler = input_handler
 
     # Backend GS renderer
-
+    world_settings.create_gaussian_renderer()
+    world_settings.update_activated_render_state()
     game_loop(window, glfw_renderer)
 
 if __name__ == "__main__":
