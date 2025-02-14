@@ -25,6 +25,7 @@ def impl_glfw_init():
     if not glfw.init():
         log.error("Could not initialize GLFW")
         exit(1)
+
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
@@ -43,10 +44,27 @@ def impl_glfw_init():
         exit(1)
     return window
 
+def update_camera_pose_lazy():
+    if world_camera.dirty_pose:
+        world_settings.gauss_renderer.update_camera_pose()
+        world_camera.dirty_pose = False
+def update_camera_intrin_lazy():
+    if world_settings.world_camera.dirty_intrinsic:
+        world_settings.gauss_renderer.update_camera_intrin()
+        world_settings.world_camera.dirty_intrinsic = False
+
+def processFrames():
+    update_camera_pose_lazy()
+    update_camera_intrin_lazy()
+    if world_settings.auto_sort:
+        world_settings.gauss_renderer.sort_and_update()
+
 
 def game_loop(window, glfw_renderer):
     while not glfw.window_should_close(window):
         glfw.poll_events()
+        glfw_renderer.process_inputs()
+
         gl.glClearColor(0, 0, 0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         
@@ -54,18 +72,13 @@ def game_loop(window, glfw_renderer):
 
         imgui.new_frame()
 
-        world_settings.gauss_renderer.update_camera_pose()
-        world_settings.gauss_renderer.update_camera_intrin()
-        
+        processFrames()
 
-        world_settings.gauss_renderer.draw()
         imgui_manager.main_ui(world_settings=world_settings)
-
-        world_settings.gauss_renderer.sort_and_update()
+        world_settings.gauss_renderer.draw()
 
         imgui.render()
         glfw_renderer.render(imgui.get_draw_data())
-        glfw_renderer.process_inputs()
         glfw.swap_buffers(window)
         
     glfw.terminate()

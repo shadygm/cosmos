@@ -20,5 +20,8 @@ def main_ui(world_settings):
             file_path = open_file_dialog()
             if file_path:
                 world_settings.load_ply(file_path)
+    
+        imgui.text("Parameters:")
+        changed, world_settings.auto_sort = imgui.checkbox("Auto-sort", world_settings.auto_sort)
 
         imgui.end()

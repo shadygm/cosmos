@@ -1,6 +1,7 @@
 from camera import Camera
 # from gaussian_renderer import GaussianRenderer
-from gaussian_representation import GaussianSet
+from gaussian_representation import GaussianData
+import gaussian_representation
 from gaussian_renderer import OpenGLRenderer
 import util
 
@@ -13,15 +14,19 @@ class WorldSettings():
         self.input_handler = None
         self.imgui_manager = None
         self.gauss_renderer = None
-        self.gaussian_set = None
+        self.gaussian_set = gaussian_representation.naive_gaussian()
 
         # Parameters
-        self.time_scale = 10.0
+        self.time_scale = 1.0
         self.scale_modifier = 1.0
         self.render_mode = 7
 
+        # Parameters for rendering
+        self.auto_sort = False
+
     def create_gaussian_renderer(self):
         self.gauss_renderer = OpenGLRenderer(self.world_camera.w, self.world_camera.h, self)
+        self.update_activated_render_state()
 
     def process_translation(self, dx, dy):
         dx *= self.time_scale
@@ -32,18 +37,14 @@ class WorldSettings():
         return len(self.gaussian_set) if self.gaussian_set is not None else 0
     
     def load_ply(self, file_path):
-        self.gaussian_set = GaussianSet.from_ply(file_path)
-        self.gauss_renderer.update_gaussian_data(self.gaussian_set)
-        self.gauss_renderer.sort_and_update()
-        self.gauss_renderer.update_camera_intrin()
-        self.gauss_renderer.update_camera_pose()
+        self.gaussian_set = gaussian_representation.from_ply(file_path)
+        self.update_activated_render_state()
 
     def update_activated_render_state(self):
-        self.gaussian_set = util.naive_gaussians()
         self.gauss_renderer.update_gaussian_data(self.gaussian_set)
         self.gauss_renderer.sort_and_update()
         self.gauss_renderer.set_scale_modifier(self.scale_modifier)
         self.gauss_renderer.set_render_mode(self.render_mode - 3)
         self.gauss_renderer.update_camera_pose()
         self.gauss_renderer.update_camera_intrin()
-        self.gauss_renderer.set_render_reso(self.world_camera.w, self.world_camera.h)
+        self.gauss_renderer.set_render_resolution(self.world_camera.w, self.world_camera.h)

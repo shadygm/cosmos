@@ -28,6 +28,13 @@ class Camera:
 
         self.log = util.get_logger()
 
+        # Sensitivity 
+        self.rot_sensitivity = 0.02
+        self.trans_sensitivity = 0.01
+        self.zoom_sensitivity = 0.08
+        self.roll_sensitivity = 0.03
+        self.target_dist = 3.
+
     def process_translation(self, dx, dy):
         front = self.target - self.position
         if np.linalg.norm(front) <= 0:
@@ -47,7 +54,44 @@ class Camera:
         self.target += move_direction 
 
         self.dirty_pose = True
+    
+    def process_mouse(self, xpos, ypos):
+        if self.first_mouse:
+            self.last_x = xpos
+            self.last_y = ypos
+            self.first_mouse = False
+        xoffset = xpos - self.last_x
+        yoffset = self.last_y - ypos
+        self.last_x = xpos
+        self.last_y = ypos
 
+        if self.is_leftmouse_pressed:
+            self.yaw += xoffset * self.rot_sensitivity
+            self.pitch += yoffset * self.rot_sensitivity
+
+            self.pitch = np.clip(self.pitch, -np.pi / 2, np.pi / 2)
+
+            front = np.array([np.cos(self.yaw) * np.cos(self.pitch), 
+                            np.sin(self.pitch), np.sin(self.yaw) * 
+                            np.cos(self.pitch)])
+            front = self._global_rot_mat() @ front.reshape(3, 1)
+            front = front[:, 0]
+            self.position[:] = - front * np.linalg.norm(self.position - self.target) + self.target
+            
+            self.dirty_pose = True
+        
+        if self.is_rightmouse_pressed:
+            front = self.target - self.position
+            front = front / np.linalg.norm(front)
+            right = np.cross(self.up, front)
+            self.position += right * xoffset * self.trans_sensitivity
+            self.target += right * xoffset * self.trans_sensitivity
+            cam_up = np.cross(right, front)
+            self.position += cam_up * yoffset * self.trans_sensitivity
+            self.target += cam_up * yoffset * self.trans_sensitivity
+            
+            self.dirty_pose = True
+        
     def get_view_matrix(self):
         return np.array(glm.lookAt(self.position, self.target, self.up))
     
@@ -65,3 +109,10 @@ class Camera:
         htanx = htany / self.h * self.w
         focal = self.w / (2 * htanx)
         return [htanx, htany, focal]
+    
+    def _global_rot_mat(self):
+        x = np.array([1, 0, 0])
+        z = np.cross(x, self.up)
+        z = z / np.linalg.norm(z)
+        x = np.cross(self.up, z)
+        return np.stack([x, self.up, z], axis=-1)

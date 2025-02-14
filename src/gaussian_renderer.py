@@ -93,7 +93,7 @@ class GaussianRenderBase:
     def update_vsync(self):
         print("VSync is not supported")
 
-    def update_gaussian_data(self, gaussianset: gaussian_representation.GaussianSet):
+    def update_gaussian_data(self, gaussianset):
         raise NotImplementedError()
     
     def sort_and_update(self):
@@ -158,14 +158,10 @@ class OpenGLRenderer(GaussianRenderBase):
         else:
             print("VSync is not supported")
 
-    def update_gaussian_data(self, gaussianset: gaussian_representation.GaussianSet):
+    def update_gaussian_data(self, gaussianset):
         self.gaussians = gaussianset
         # Obtain the flattened representation from the GaussianSet.
         gaussian_data = gaussianset.flat()
-        
-
-        print(gaussian_data.shape)
-        print(gaussian_data[0])
         
         self.gau_bufferid = util.set_storage_buffer_data(
             self.program,
@@ -178,19 +174,16 @@ class OpenGLRenderer(GaussianRenderBase):
         util.set_uniform_1int(self.program, gaussianset.sh_dim, "sh_dim")
 
     def sort_and_update(self):
-        if self.gaussians is None or len(self.gaussians) == 0:
-            return
-        # Obtain the camera from world_settings
         camera = self.world_settings.world_camera
         index = _sort_gaussian(self.gaussians, camera.get_view_matrix())
         self.index_bufferid = util.set_storage_buffer_data(
             self.program,
-            "gi",
+            "gaussian_order",
             index, 
             bind_idx=1,
             buffer_id=self.index_bufferid
         )
-   
+        
     def set_scale_modifier(self, modifier):
         util.set_uniform_1f(self.program, modifier, "scale_modifier")
 
@@ -214,8 +207,6 @@ class OpenGLRenderer(GaussianRenderBase):
         util.set_uniform_v3(self.program, camera.get_htanfovxy_focal(), "hfovxy_focal")
 
     def draw(self):
-        if self.gaussians is None:
-            return
         gl.glUseProgram(self.program)
         gl.glBindVertexArray(self.vao)
         num_gau = len(self.gaussians)
