@@ -52,7 +52,6 @@ def _sort_gaussian_torch(gaussianset, view_mat):
         _sort_buffer_xyz = torch.tensor(gaussianset.xyz).cuda()
         _sort_buffer_gausid = id(gaussianset)
     xyz = _sort_buffer_xyz
-    view_mat = torch.tensor(view_mat).cuda()
     xyz_view = view_mat[None, :3, :3] @ xyz[..., None] + view_mat[None, :3, 3, None]
     depth = xyz_view[:, 2, 0]
     index = torch.argsort(depth)
@@ -65,7 +64,7 @@ try:
     import torch
     if not torch.cuda.is_available():
         raise ImportError
-    print("Detected torch cuda installed, will use torch as sorting backend")
+    util.logger.info("Detected torch cuda installed, will use torch as sorting backend")
     _sort_gaussian = _sort_gaussian_torch
 except ImportError:
     try:
@@ -114,6 +113,9 @@ class GaussianRenderBase:
     def draw(self):
         raise NotImplementedError()
     
+    def set_model_matrix(self, model_mat):
+        raise NotImplementedError()
+    
     def set_render_resolution(self, w, h):
         raise NotImplementedError()
 
@@ -132,8 +134,8 @@ class OpenGLRenderer(GaussianRenderBase):
             -1, -1
         ], dtype=np.float32).reshape(4, 2)
         self.quad_f = np.array([
-            0, 1, 2,
-            0, 2, 3
+            0, 2, 1,
+            0, 3, 2
         ], dtype=np.uint32).reshape(2, 3)
         
         # Load quad geometry into a VAO.
@@ -144,7 +146,8 @@ class OpenGLRenderer(GaussianRenderBase):
         self.index_bufferid = None
         
         # OpenGL settings.
-        gl.glDisable(gl.GL_CULL_FACE)
+        gl.glEnable(gl.GL_CULL_FACE)
+        # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
@@ -175,7 +178,10 @@ class OpenGLRenderer(GaussianRenderBase):
 
     def sort_and_update(self):
         camera = self.world_settings.world_camera
+        time_start = util.get_time()
         index = _sort_gaussian(self.gaussians, camera.get_view_matrix())
+        time_end = util.get_time()
+        util.logger.debug(f"Sorting time: {time_end - time_start:.3f} s")
         self.index_bufferid = util.set_storage_buffer_data(
             self.program,
             "gaussian_order",
@@ -205,6 +211,9 @@ class OpenGLRenderer(GaussianRenderBase):
         proj_mat = camera.get_project_matrix()
         util.set_uniform_mat4(self.program, proj_mat, "projection_matrix")
         util.set_uniform_v3(self.program, camera.get_htanfovxy_focal(), "hfovxy_focal")
+
+    def set_model_matrix(self, model_mat):
+        util.set_uniform_mat4(self.program, model_mat, "model_matrix")
 
     def draw(self):
         gl.glUseProgram(self.program)

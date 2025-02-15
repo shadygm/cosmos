@@ -13,7 +13,7 @@ from input_handler import InputHandler
 import util
 import imgui_manager
 from worldsettings import WorldSettings
-
+import existing_renderer
 
 
 # Make a Camera object
@@ -46,11 +46,11 @@ def impl_glfw_init():
 
 def update_camera_pose_lazy():
     if world_camera.dirty_pose:
-        world_settings.gauss_renderer.update_camera_pose()
+        world_settings.update_camera_pose()
         world_camera.dirty_pose = False
 def update_camera_intrin_lazy():
     if world_settings.world_camera.dirty_intrinsic:
-        world_settings.gauss_renderer.update_camera_intrin()
+        world_settings.update_camera_intrin()
         world_settings.world_camera.dirty_intrinsic = False
 
 def processFrames():
@@ -74,7 +74,7 @@ def game_loop(window, glfw_renderer):
 
         processFrames()
 
-        imgui_manager.main_ui(world_settings=world_settings)
+        imgui_manager.main_ui(this_world_settings=world_settings)
         world_settings.gauss_renderer.draw()
 
         imgui.render()

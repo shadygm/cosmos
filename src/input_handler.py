@@ -14,6 +14,8 @@ class InputHandler:
     def init_callbacks(self):
         glfw.set_cursor_pos_callback(self.window, self.cursor_pos_callback)
         glfw.set_mouse_button_callback(self.window, self.mouse_button_callback)
+        glfw.set_window_size_callback(self.window, self.window_resize_callback)
+        glfw.set_scroll_callback(self.window, self.scroll_callback)
         self.log.info("Initializing callbacks")
         return
     
@@ -30,6 +32,13 @@ class InputHandler:
             self.world_settings.world_camera.is_right_mouse_pressed = False
         self.world_settings.world_camera.process_mouse(xpos, ypos)
     
+    def scroll_callback(self, window, xoffset, yoffset):
+        self.world_settings.world_camera.process_scroll(xoffset, yoffset)
+
+    def window_resize_callback(self, window, width, height):
+        self.world_settings.world_camera.w = width
+        self.world_settings.world_camera.h = height
+        self.world_settings.gauss_renderer.set_render_resolution(width, height)
 
     def check_inputs(self):
         # Time-based to make it frame-rate independent
@@ -37,7 +46,7 @@ class InputHandler:
         delta = curr_time - self.last_time
         self.last_time = curr_time
 
-
+        # View transformations
         if glfw.get_key(self.window, glfw.KEY_W) == glfw.PRESS: # Forward
             self.world_settings.process_translation(0, delta)
         if glfw.get_key(self.window, glfw.KEY_A) == glfw.PRESS: # Left
@@ -46,3 +55,14 @@ class InputHandler:
             self.world_settings.process_translation(0, -delta)
         if glfw.get_key(self.window, glfw.KEY_D) == glfw.PRESS: # Right
             self.world_settings.process_translation(delta, 0)
+
+        # Model transformations
+        if glfw.get_key(self.window, glfw.KEY_I) == glfw.PRESS: # Model forward
+            self.world_settings.process_model_translation(0, -delta)
+        if glfw.get_key(self.window, glfw.KEY_J) == glfw.PRESS: # Model left
+            self.world_settings.process_model_translation(delta, 0)
+        if glfw.get_key(self.window, glfw.KEY_K) == glfw.PRESS: # Model backward
+            self.world_settings.process_model_translation(0, delta)
+        if glfw.get_key(self.window, glfw.KEY_L) == glfw.PRESS:
+            self.world_settings.process_model_translation(-delta, 0)
+            

@@ -5,6 +5,7 @@ import OpenGL.GL as gl
 from gaussian_representation import *
 import numpy as np
 import glm
+import glfw
 
 logger.remove()
 logger.add(sys.stderr, level="INFO")
@@ -120,3 +121,5 @@ def set_uniform_v3(shader, contents, name):
         contents[0], contents[1], contents[2]
     )
 
+def get_time():
+    return glfw.get_time()

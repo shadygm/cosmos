@@ -46,6 +46,7 @@ layout (std430, binding=1) buffer gaussian_order {
 
 uniform mat4 view_matrix;
 uniform mat4 projection_matrix;
+uniform mat4 model_matrix;
 uniform vec3 hfovxy_focal;
 uniform vec3 cam_pos;
 uniform int sh_dim;
@@ -121,7 +122,8 @@ void main()
 	int total_dim = 3 + 4 + 3 + 1 + sh_dim;
 	int start = boxid * total_dim;
 	vec4 g_pos = vec4(get_vec3(start + POS_IDX), 1.f);
-    vec4 g_pos_view = view_matrix * g_pos;
+    vec4 g_pos_model = model_matrix * g_pos;
+	vec4 g_pos_view = view_matrix * g_pos_model;
     vec4 g_pos_screen = projection_matrix * g_pos_view;
 	g_pos_screen.xyz = g_pos_screen.xyz / g_pos_screen.w;
     g_pos_screen.w = 1.f;
@@ -157,6 +159,7 @@ void main()
     vec2 quadwh_ndc = quadwh_scr / wh * 2;  // in ndc space
     g_pos_screen.xy = g_pos_screen.xy + position * quadwh_ndc;
     coordxy = position * quadwh_scr;
+	
     gl_Position = g_pos_screen;
     
     alpha = g_opacity;
